@@ -23,6 +23,16 @@
 #define MOUSE_YSIGN     (1 << 5)    // Sign bit for the y-axis
 #define MOUSE_ALWAYS_SET 0xC0       // This bit is always set to 1
 
+// length of the mouse message (1 flag byte, 2 delta bytes)
+#define MSG_LEN 3
+
+struct {
+  ushort x;
+  ushort y;
+  uchar bytes_read; // number of bytes read so far
+  uchar data[MSG_LEN];
+} mouse;
+
 static void
 mousewait(int is_read)
 {
@@ -69,34 +79,64 @@ void
 mouseinit(void)
 {
   uchar status_byte;
-  // Your code here
-  mousewait_send();
+
+  mouse.x = 0;
+  mouse.y = 0;
+  mouse.bytes_read = 0;
+
   // enable secondary PS/2 device (the mouse)
-  outb(PS2CTRL, 0xA8);
   mousewait_send();
+  outb(PS2CTRL, 0xA8);
+
   // select the Compaq status byte
+  mousewait_send();
   outb(PS2CTRL, 0x20);
   mousewait_recv();
   status_byte = inb(PS2DATA);
   // set the ENABLE_IRQ12 bit
   status_byte |= MOUSE_ENABLEIRQ;
-  mousewait_send();
+
   // prepare to send modified status byte
-  outb(PS2CTRL, 0x60);
   mousewait_send();
+  outb(PS2CTRL, 0x60);
   // send the modified status byte over the data port
   // to enable interrupts
+  mousewait_send();
   outb(PS2DATA, status_byte);
+  // set default resolution, sampling speed, etc.
   mousecmd(0xF6); // set default settings
-  mousecmd(0xF4); // enable delivery interrupts in streaming mode
+  // tell the mouse it can start delivering interrupts (in streaming mode)
+  mousecmd(0xF4); 
 
   // start handling IRQ_MOUSE
-  //picenable(IRQ_MOUSE);
   ioapicenable(IRQ_MOUSE, 0);
 }
 
 void
 mouseintr(void)
 {
-  // TODO
+  uchar data_status;
+  mousewait_recv();
+  data_status = inb(PS2CTRL);
+  if(data_status & PS2DIB){ // there's data to read
+    uchar data; 
+
+    mousewait_recv();
+    data = inb(PS2DATA);
+    cprintf("Mouse got %x\n", data);
+    mouse.data[mouse.bytes_read % MSG_LEN] = data;
+    mouse.bytes_read++;
+    if(mouse.bytes_read % MSG_LEN == 0){
+      cprintf("mouse moved: x,y diff = (%s%d, %s%d)\n", 
+          (mouse.data[0] & MOUSE_XSIGN) ? "-":"",
+          mouse.data[1], 
+          (mouse.data[0] & MOUSE_YSIGN) ? "-":"",
+          mouse.data[2]); 
+      cprintf("  LEFT: %s, RIGHT: %s, MIDDLE: %s\n",
+          (mouse.data[0] & MOUSE_LEFT) ? "PRESSED" : "UNPRESSED",
+          (mouse.data[0] & MOUSE_RIGHT) ? "PRESSED" : "UNPRESSED",
+          (mouse.data[0] & MOUSE_MIDDLE) ? "PRESSED" : "UNPRESSED"
+      );
+    }
+  }
 }
