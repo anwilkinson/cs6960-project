@@ -215,10 +215,17 @@ void
 consoleintr(int (*getc)(void))
 {
   int c, doprocdump = 0;
+  int docopy = 0, dopaste = 0;
 
   acquire(&cons.lock);
   while((c = getc()) >= 0){
     switch(c){
+    case C('C'):  // Copy
+      docopy = 1;
+      break;
+    case C('V'):  // Paste
+      dopaste = 1;
+      break;
     case C('P'):  // Process listing.
       // procdump() locks cons.lock indirectly; invoke later
       doprocdump = 1;
@@ -252,6 +259,12 @@ consoleintr(int (*getc)(void))
   release(&cons.lock);
   if(doprocdump) {
     procdump();  // now call procdump() wo. cons.lock held
+  }
+  if(docopy) {
+    mouse_leftclick();
+  }
+  if(dopaste) {
+    mouse_rightclick();
   }
 }
 
