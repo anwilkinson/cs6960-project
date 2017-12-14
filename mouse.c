@@ -27,8 +27,6 @@
 #define MSG_LEN 3
 
 struct {
-  ushort x;
-  ushort y;
   uchar bytes_read; // number of bytes read so far
   uchar data[MSG_LEN];
 } mouse;
@@ -80,8 +78,6 @@ mouseinit(void)
 {
   uchar status_byte;
 
-  mouse.x = 0;
-  mouse.y = 0;
   mouse.bytes_read = 0;
 
   // enable secondary PS/2 device (the mouse)
@@ -123,20 +119,28 @@ mouseintr(void)
 
     mousewait_recv();
     data = inb(PS2DATA);
-    cprintf("Mouse got %x\n", data);
-    mouse.data[mouse.bytes_read % MSG_LEN] = data;
-    mouse.bytes_read++;
-    if(mouse.bytes_read % MSG_LEN == 0){
-      cprintf("mouse moved: x,y diff = (%s%d, %s%d)\n", 
-          (mouse.data[0] & MOUSE_XSIGN) ? "-":"",
-          mouse.data[1], 
-          (mouse.data[0] & MOUSE_YSIGN) ? "-":"",
-          mouse.data[2]); 
-      cprintf("  LEFT: %s, RIGHT: %s, MIDDLE: %s\n",
-          (mouse.data[0] & MOUSE_LEFT) ? "PRESSED" : "UNPRESSED",
-          (mouse.data[0] & MOUSE_RIGHT) ? "PRESSED" : "UNPRESSED",
-          (mouse.data[0] & MOUSE_MIDDLE) ? "PRESSED" : "UNPRESSED"
-      );
+    mouse.data[mouse.bytes_read] = data;
+
+    switch(mouse.bytes_read) {
+      case 0:
+        mouse.bytes_read++;
+        return;
+      case 1:
+        mouse.bytes_read++;
+        return;
+      case 2:
+        mouse.bytes_read = 0;
+        break;
     }
+    int dx, dy;
+
+    dx = mouse.data[1];
+    dy = mouse.data[2];
+    if(mouse.data[0] & MOUSE_XSIGN)
+      dx = -dx;
+    if(mouse.data[0] & MOUSE_YSIGN)
+      dy = -dy;
+
+    movecursor(dx, -dy); //reverse the sign on dy for cursor movements
   }
 }

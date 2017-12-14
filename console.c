@@ -24,6 +24,11 @@ static struct {
   int locking;
 } cons;
 
+struct {
+  int x;
+  int y;
+} mouse_cursor;
+
 static void
 printint(int xx, int base, int sign)
 {
@@ -297,3 +302,52 @@ consoleinit(void)
   ioapicenable(IRQ_KBD, 0);
 }
 
+static int min(int a, int b)
+{
+  if(a < b){
+    return a;
+  }
+  return b;
+}
+
+static int max(int a, int b)
+{
+  if(a > b){
+    return a;
+  }
+  return b;
+}
+
+#define NUM_COLS 80
+#define NUM_ROWS 25
+#define INC
+
+void
+movecursor(int x, int y)
+{
+  int newx, newy;
+  uchar oldc;
+
+  if(x < 0){
+    x = -1;
+  } else if (x > 0){
+    x = 1;
+  }
+  if(y < 0){
+    y = -1;
+  } else if (y > 0){
+    y = 1;
+  }
+
+  newx = min(max(mouse_cursor.x + x, 0), NUM_COLS-1);
+  newy = min(max(mouse_cursor.y + y, 0), NUM_ROWS-1);
+
+  //Set old cursor pos to black bg and white fg
+  oldc = crt[80 * mouse_cursor.y + mouse_cursor.x] & 0xFF;
+  crt[80 * mouse_cursor.y + mouse_cursor.x] = oldc | (0x07 << 8);
+  mouse_cursor.x = newx;
+  mouse_cursor.y = newy;
+  //Set new cursor pos to white bg and black fg
+  oldc = crt[80 * mouse_cursor.y + mouse_cursor.x] & 0xFF;
+  crt[80 * mouse_cursor.y + mouse_cursor.x] = oldc | (0x70 << 8);
+}
