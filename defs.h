@@ -22,6 +22,8 @@ void            cprintf(char*, ...);
 void            consoleintr(int(*)(void));
 void            panic(char*) __attribute__((noreturn));
 void            movecursor(int, int);
+void            mouse_leftclick(void);
+void            mouse_rightclick(void);
 
 // exec.c
 int             exec(char*, char**);

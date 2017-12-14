@@ -29,6 +29,9 @@
 struct {
   uchar bytes_read; // number of bytes read so far
   uchar data[MSG_LEN];
+  uchar left_pressed;
+  uchar right_pressed;
+  uchar middle_pressed;
 } mouse;
 
 static void
@@ -142,5 +145,16 @@ mouseintr(void)
       dy = -dy;
 
     movecursor(dx, -dy); //reverse the sign on dy for cursor movements
+
+    if(mouse.left_pressed && !(mouse.data[0] & MOUSE_LEFT)){
+      mouse_leftclick();
+    }
+    if(mouse.right_pressed && !(mouse.data[0] & MOUSE_RIGHT)){
+      mouse_rightclick();
+    }
+
+    mouse.left_pressed = mouse.data[0] & MOUSE_LEFT;
+    mouse.right_pressed = mouse.data[0] & MOUSE_RIGHT;
+    mouse.middle_pressed = mouse.data[0] & MOUSE_MIDDLE;
   }
 }

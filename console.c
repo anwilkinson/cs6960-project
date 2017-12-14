@@ -29,6 +29,24 @@ struct {
   int y;
 } mouse_cursor;
 
+#define CLIPBOARD_SIZE 256
+char clipboard[CLIPBOARD_SIZE];
+
+static int
+copy_paste_getc(void)
+{
+  static int pos = 0;
+  int retval;
+
+  if(clipboard[pos] == 0){
+    pos = 0;
+    return -1;
+  }
+  retval = (unsigned char)clipboard[pos];
+  pos++;
+  return retval;
+}
+
 static void
 printint(int xx, int base, int sign)
 {
@@ -345,9 +363,33 @@ movecursor(int x, int y)
   //Set old cursor pos to black bg and white fg
   oldc = crt[80 * mouse_cursor.y + mouse_cursor.x] & 0xFF;
   crt[80 * mouse_cursor.y + mouse_cursor.x] = oldc | (0x07 << 8);
+
   mouse_cursor.x = newx;
   mouse_cursor.y = newy;
+
   //Set new cursor pos to white bg and black fg
   oldc = crt[80 * mouse_cursor.y + mouse_cursor.x] & 0xFF;
   crt[80 * mouse_cursor.y + mouse_cursor.x] = oldc | (0x70 << 8);
+}
+
+void
+mouse_leftclick(void)
+{
+  int i;
+
+  i = 0;
+  for(i = 0; mouse_cursor.x + i < 80; ++i){
+    clipboard[i] = crt[80 * mouse_cursor.y + mouse_cursor.x + i] & 0xFF;
+  }
+  clipboard[i--] = 0;
+  //Trim the end of trailing spaces
+  while(i >= 0 && clipboard[i] == ' '){
+    clipboard[i--] = 0;
+  }
+}
+
+void
+mouse_rightclick(void)
+{
+  consoleintr(copy_paste_getc);
 }
